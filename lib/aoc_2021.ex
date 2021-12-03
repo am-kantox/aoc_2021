@@ -94,4 +94,83 @@ defmodule AoC_2021 do
     do: %{acc | aim: acc.aim - (value |> String.trim() |> String.to_integer())}
 
   defp d2_destination_aimed_reducer(_, acc), do: acc
+
+  @doc """
+  Diagnostics
+
+  ## Examples
+
+      iex> AoC_2021.d3_diagnostics("d3_input")
+      1836 * 2259
+  """
+  @spec d3_diagnostics(binary()) :: non_neg_integer()
+  def d3_diagnostics(file) do
+    {count, counts} =
+      file
+      |> File.stream!()
+      |> Enum.reduce({0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, fn
+        <<c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, _::binary>>,
+        {count, [i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12]} ->
+          acc =
+            [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12]
+            |> Enum.zip([i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12])
+            |> Enum.map(fn
+              {?1, i} -> i + 1
+              {?0, i} -> i
+            end)
+
+          {count + 1, acc}
+      end)
+
+    result = Enum.map(counts, fn i -> if i / count > 0.5, do: ?1, else: ?0 end)
+    coresult = Enum.map(result, fn i -> if i == ?0, do: ?1, else: ?0 end)
+
+    [result, coresult]
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.to_integer(&1, 2))
+    |> Enum.reduce(&Kernel.*/2)
+  end
+
+  @lsr_acc %{?0 => [], ?1 => []}
+  @doc """
+  Diagnostics
+
+  ## Examples
+
+      iex> AoC_2021.d3_life_support_rating("d3_input")
+      1427 * 2502
+  """
+  @spec d3_life_support_rating(binary()) :: non_neg_integer()
+  def d3_life_support_rating(file) do
+    input =
+      file
+      |> File.stream!()
+      |> Stream.map(&String.trim/1)
+      |> Enum.to_list()
+
+    input = Enum.zip(input, input)
+
+    ogr = d3_reducer(input, &Kernel.</2)
+    co2_sr = d3_reducer(input, &Kernel.>=/2)
+
+    ogr * co2_sr
+  end
+
+  defp d3_lsr_step_reducer({<<?0, rest::binary>>, value}, %{?0 => zeros, ?1 => ones}),
+    do: %{?0 => [{rest, value} | zeros], ?1 => ones}
+
+  defp d3_lsr_step_reducer({<<?1, rest::binary>>, value}, %{?0 => zeros, ?1 => ones}),
+    do: %{?0 => zeros, ?1 => [{rest, value} | ones]}
+
+  defp d3_reducer([{_, result}], _), do: String.to_integer(result, 2)
+
+  defp d3_reducer(list, checker) do
+    %{?0 => zeros, ?1 => ones} = Enum.reduce(list, @lsr_acc, &d3_lsr_step_reducer/2)
+
+    [zeros, ones]
+    |> Enum.map(&Enum.count/1)
+    |> Enum.reduce(checker)
+    |> if(do: zeros, else: ones)
+    |> d3_reducer(checker)
+  end
 end
