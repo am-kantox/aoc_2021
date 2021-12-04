@@ -173,4 +173,40 @@ defmodule AoC_2021 do
     |> if(do: zeros, else: ones)
     |> d3_reducer(checker)
   end
+
+  @doc """
+  Bingo game
+
+  ## Examples
+
+      iex> AoC_2021.d4_bingo("d4_input")
+      74320
+  """
+  @spec d4_bingo(binary()) :: pos_integer()
+  def d4_bingo(file) do
+    [numbers | boards] =
+      file
+      |> File.read!()
+      |> String.split("\n\n")
+
+    AoC_2021.BingoBoard.run(boards, numbers)
+  end
+
+  @doc """
+  Bingo game (we are losing)
+
+  ## Examples
+
+      iex> AoC_2021.d4_bingo_lose("d4_input")
+      17884
+  """
+  @spec d4_bingo_lose(binary()) :: pos_integer()
+  def d4_bingo_lose(file) do
+    [numbers | boards] =
+      file
+      |> File.read!()
+      |> String.split("\n\n")
+
+    AoC_2021.BingoBoard.run_to_lose(boards, numbers)
+  end
 end
