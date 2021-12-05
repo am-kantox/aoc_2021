@@ -209,4 +209,33 @@ defmodule AoC_2021 do
 
     AoC_2021.BingoBoard.run_to_lose(boards, numbers)
   end
+
+  alias AoC_2021.CrossingBoard, as: B
+
+  @doc """
+  Hydrothermal venture
+
+  ## Examples
+
+      iex> AoC_2021.d5_crosses("d5_input")
+      5169
+
+      iex> AoC_2021.d5_crosses("d5_input", true)
+      22083
+  """
+  @spec d5_crosses(binary()) :: non_neg_integer()
+  def d5_crosses(file, diags? \\ false) do
+    file
+    |> File.stream!()
+    |> Stream.map(&Regex.scan(~r/\d+/, &1))
+    |> Stream.map(&List.flatten/1)
+    |> Stream.map(fn row -> Enum.map(row, &String.to_integer/1) end)
+    |> Enum.reduce(B.create(1000), fn
+      [x, y1, x, y2], acc -> B.succ(acc, {:row, x, {y1, y2}})
+      [x1, y, x2, y], acc -> B.succ(acc, {:col, y, {x1, x2}})
+      [x1, y1, x2, y2], acc when diags? -> B.succ(acc, {:dia, {x1, y1}, {x2, y2}})
+      _, acc -> acc
+    end)
+    |> B.total()
+  end
 end
