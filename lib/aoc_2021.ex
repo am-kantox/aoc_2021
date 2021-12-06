@@ -238,4 +238,33 @@ defmodule AoC_2021 do
     end)
     |> B.total()
   end
+
+  alias AoC_2021.Lanternfish.Static, as: L
+
+  @doc """
+  Lanternfish
+
+  ## Examples
+
+      iex> AoC_2021.d6_population("d6_input", 18)
+      1_593
+      iex> AoC_2021.d6_population("d6_input", 80)
+      354_564
+      iex> AoC_2021.d6_population("d6_input", 256)
+      1_609_058_859_115
+  """
+  @spec d6_population(binary(), pos_integer()) :: non_neg_integer()
+  def d6_population(file, days) do
+    {:ok, pid} =
+      file
+      |> File.read!()
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.to_integer/1)
+      |> L.start_link()
+
+    Enum.each(1..days, fn _ -> L.tick() end)
+
+    L.count()
+    |> tap(fn _ -> GenServer.stop(pid) end)
+  end
 end
