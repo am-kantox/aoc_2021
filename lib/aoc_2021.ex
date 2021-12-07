@@ -267,4 +267,45 @@ defmodule AoC_2021 do
     L.count()
     |> tap(fn _ -> GenServer.stop(pid) end)
   end
+
+  @doc """
+  Crab adjustement
+
+  ## Examples
+
+      iex> AoC_2021.d7_adjust("d7_input", true)
+      339321
+
+      iex> AoC_2021.d7_adjust("d7_input", false)
+      95476244
+  """
+  @spec d7_adjust(binary(), boolean()) :: non_neg_integer()
+  def d7_adjust(file, const_fuel_consumption) do
+    input =
+      file
+      |> File.read!()
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.to_integer/1)
+
+    steps = fn arr ->
+      if const_fuel_consumption do
+        fn i -> Enum.reduce(arr, 0, &(&2 + abs(&1 - i))) end
+      else
+        fn i ->
+          arr
+          |> Enum.map(fn
+            e ->
+              diff = abs(e - i)
+              round((diff + 1) * diff / 2)
+          end)
+          |> Enum.sum()
+        end
+      end
+    end
+
+    {min, max} = Enum.min_max(input)
+
+    result = Enum.min_by(min..max, steps.(input))
+    steps.(input).(result)
+  end
 end
