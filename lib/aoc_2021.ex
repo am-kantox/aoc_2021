@@ -308,4 +308,82 @@ defmodule AoC_2021 do
     result = Enum.min_by(min..max, steps.(input))
     steps.(input).(result)
   end
+
+  @doc """
+  Segments rearranging
+
+  ## Examples
+
+      iex> AoC_2021.d8_segments("d8_input", :shorties)
+      365
+
+      iex> AoC_2021.d8_segments("d8_input", :full)
+      975706
+
+  """
+  @spec d8_segments(binary(), :shorties | :full) :: non_neg_integer()
+  def d8_segments(file, :shorties) do
+    file
+    |> File.stream!()
+    |> Stream.map(&String.split(&1, "|", trim: true))
+    |> Stream.map(fn [_, outputs] ->
+      outputs
+      |> String.split()
+      |> Enum.reduce(0, fn
+        <<_::8*2>>, acc -> acc + 1
+        <<_::8*3>>, acc -> acc + 1
+        <<_::8*4>>, acc -> acc + 1
+        <<_::8*7>>, acc -> acc + 1
+        _other, acc -> acc
+      end)
+    end)
+    |> Enum.sum()
+  end
+
+  def d8_segments(file, :full) do
+    file
+    |> File.stream!()
+    |> Stream.map(&String.split(&1, "|", trim: true))
+    |> Stream.map(fn [inputs, outputs] ->
+      Enum.map([inputs, outputs], fn strings ->
+        strings |> String.split() |> Enum.map(&to_charlist/1) |> Enum.map(&Enum.sort/1)
+      end)
+    end)
+    |> Enum.map(fn [input, output] ->
+      one = Enum.find(input, &match?([_, _], &1))
+      seven = Enum.find(input, &match?([_, _, _], &1))
+      four = Enum.find(input, &match?([_, _, _, _], &1))
+      eight = Enum.find(input, &match?([_, _, _, _, _, _, _], &1))
+
+      zero_six_nine = Enum.filter(input, &match?([_, _, _, _, _, _], &1))
+      {[six], zero_nine} = Enum.split_with(zero_six_nine, &match?([_, _, _, _], &1 -- seven))
+      {[nine], [zero]} = Enum.split_with(zero_nine, &Enum.all?(four, fn c -> c in &1 end))
+
+      two_three_five = Enum.filter(input, &match?([_, _, _, _, _], &1))
+      {[three], two_five} = Enum.split_with(two_three_five, &match?([_, _], &1 -- seven))
+      {[five], [two]} = Enum.split_with(two_five, &Enum.all?(&1, fn c -> c in nine end))
+
+      map = %{
+        zero => 0,
+        one => 1,
+        two => 2,
+        three => 3,
+        four => 4,
+        five => 5,
+        six => 6,
+        seven => 7,
+        eight => 8,
+        nine => 9
+      }
+
+      output
+      |> Enum.reverse()
+      |> Enum.with_index(0)
+      |> Enum.reduce(0, fn {digit, idx}, acc ->
+        map[digit] * :math.pow(10, idx) + acc
+      end)
+    end)
+    |> Enum.sum()
+    |> round()
+  end
 end
