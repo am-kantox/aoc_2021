@@ -386,4 +386,69 @@ defmodule AoC_2021 do
     |> Enum.sum()
     |> round()
   end
+
+  @doc """
+  Low levels
+
+  ## Examples
+
+      iex> AoC_2021.d9_low_points("d9_input", :low_points)
+      560
+
+      iex> AoC_2021.d9_low_points("d9_input", :basins)
+      483664
+
+  """
+  @spec d9_low_points(binary(), :low_points | :full) :: non_neg_integer()
+  def d9_low_points(file, :low_points) do
+    file
+    |> AoC_2021.Array2DInt.new()
+    |> AoC_2021.Array2DInt.low_points()
+    |> Enum.reduce(0, fn {{{_, _}, v}, _}, acc -> acc + v + 1 end)
+  end
+
+  def d9_low_points(file, :basins) do
+    data = AoC_2021.Array2DInt.new(file)
+
+    data
+    |> AoC_2021.Array2DInt.low_points()
+    |> Enum.map(&d9_step(&1, data))
+    |> Enum.map(&MapSet.size/1)
+    |> Enum.sort(:desc)
+    |> Enum.take(3)
+    |> Enum.reduce(&Kernel.*/2)
+  end
+
+  defp d9_step(input, acc \\ [], data)
+
+  defp d9_step(input, acc, data) when is_list(acc),
+    do: d9_step(input, MapSet.new(acc), data)
+
+  defp d9_step({{{_, _}, v}, adjs} = elem, acc, data) do
+    if MapSet.member?(acc, elem) do
+      acc
+    else
+      acc = MapSet.put(acc, elem)
+
+      next = v + 1
+
+      news =
+        adjs
+        |> Stream.reject(&match?({{_, _}, 9}, &1))
+        |> Stream.filter(&match?({{_, _}, ^next}, &1))
+        |> Stream.map(fn {{r, c}, v} ->
+          {{{r, c}, v}, AoC_2021.Array2DInt.adjacent(data, {r, c})}
+        end)
+        |> MapSet.new()
+        |> MapSet.difference(acc)
+
+      if MapSet.size(news) > 0 do
+        news
+        |> Enum.map(&d9_step(&1, acc, data))
+        |> Enum.reduce(&MapSet.union/2)
+      else
+        acc
+      end
+    end
+  end
 end
