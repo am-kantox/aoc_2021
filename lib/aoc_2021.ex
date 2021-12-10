@@ -451,4 +451,80 @@ defmodule AoC_2021 do
       end
     end
   end
+
+  @scores %{
+    corrupted: %{
+      ?) => 3,
+      ?] => 57,
+      ?} => 1197,
+      ?> => 25137
+    },
+    incomplete: %{
+      ?( => 1,
+      ?[ => 2,
+      ?{ => 3,
+      ?< => 4
+    }
+  }
+  @pairs %{
+    ?( => ?),
+    ?[ => ?],
+    ?{ => ?},
+    ?< => ?>
+  }
+  @doc """
+  Corrupted chunks
+
+  ## Examples
+
+      iex> AoC_2021.d10_cc("d10_input", :corrupted)
+      243939
+
+      iex> AoC_2021.d10_cc("d10_input", :incomplete)
+      2421222841
+
+  """
+  @spec d10_cc(binary(), :corrupted | :incomplete) :: non_neg_integer()
+  def d10_cc(file, type) when type in [:corrupted, :incomplete] do
+    outcome =
+      file
+      |> File.stream!()
+      |> Stream.map(&d10_parse/1)
+      |> Enum.reduce([], fn
+        {^type, char}, acc -> d10_reducer({type, char}, acc)
+        _, acc -> acc
+      end)
+
+    case type do
+      :corrupted ->
+        Enum.sum(outcome)
+
+      :incomplete ->
+        with c <- Enum.count(outcome), do: outcome |> Enum.sort() |> Enum.at(div(c, 2))
+    end
+  end
+
+  defp d10_reducer({:corrupted, char}, acc) do
+    [@scores[:corrupted][char] | acc]
+  end
+
+  defp d10_reducer({:incomplete, chars}, acc) do
+    [Enum.reduce(chars, 0, &(&2 * 5 + @scores[:incomplete][&1])) | acc]
+  end
+
+  def d10_parse(line, acc \\ [])
+  def d10_parse("", acc), do: {:incomplete, acc}
+
+  Enum.each(@pairs, fn {open, close} ->
+    def d10_parse(<<unquote(open), rest::binary>>, acc),
+      do: d10_parse(rest, [unquote(open) | acc])
+
+    def d10_parse(<<unquote(close), rest::binary>>, [unquote(open) | acc]),
+      do: d10_parse(rest, acc)
+
+    def d10_parse(<<unquote(close), _::binary>>, _), do: {:corrupted, unquote(close)}
+  end)
+
+  def d10_parse(<<_, rest::binary>>, acc),
+    do: d10_parse(rest, acc)
 end
