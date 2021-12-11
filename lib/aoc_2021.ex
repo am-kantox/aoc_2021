@@ -1,4 +1,8 @@
 defmodule AoC_2021 do
+  @moduledoc "Solutions"
+
+  alias AoC_2021.Array2DInt, as: Arr2D
+
   @doc """
   Calculates the number of times the input increases
 
@@ -402,16 +406,16 @@ defmodule AoC_2021 do
   @spec d9_low_points(binary(), :low_points | :full) :: non_neg_integer()
   def d9_low_points(file, :low_points) do
     file
-    |> AoC_2021.Array2DInt.new()
-    |> AoC_2021.Array2DInt.low_points()
+    |> Arr2D.new()
+    |> Arr2D.low_points()
     |> Enum.reduce(0, fn {{{_, _}, v}, _}, acc -> acc + v + 1 end)
   end
 
   def d9_low_points(file, :basins) do
-    data = AoC_2021.Array2DInt.new(file)
+    data = Arr2D.new(file)
 
     data
-    |> AoC_2021.Array2DInt.low_points()
+    |> Arr2D.low_points()
     |> Enum.map(&d9_step(&1, data))
     |> Enum.map(&MapSet.size/1)
     |> Enum.sort(:desc)
@@ -437,7 +441,7 @@ defmodule AoC_2021 do
         |> Stream.reject(&match?({{_, _}, 9}, &1))
         |> Stream.filter(&match?({{_, _}, ^next}, &1))
         |> Stream.map(fn {{r, c}, v} ->
-          {{{r, c}, v}, AoC_2021.Array2DInt.adjacent(data, {r, c})}
+          {{{r, c}, v}, Arr2D.adjacent(data, {r, c})}
         end)
         |> MapSet.new()
         |> MapSet.difference(acc)
@@ -527,4 +531,84 @@ defmodule AoC_2021 do
 
   def d10_parse(<<_, rest::binary>>, acc),
     do: d10_parse(rest, acc)
+
+  @doc """
+  Low levels
+
+  ## Examples
+
+      iex> AoC_2021.d11_dumbos("d11_input", :flashes)
+      1723
+
+      iex> AoC_2021.d11_dumbos("d11_input", :splashes)
+      327
+  """
+  @spec d11_dumbos(binary(), :flashes | :splashes) :: non_neg_integer()
+  def d11_dumbos(file, type) when type in ~w|flashes splashes|a do
+    file
+    |> Arr2D.new()
+    |> d11_steps(type)
+    |> elem(1)
+  end
+
+  @max_steps 100
+
+  defp d11_steps(arr, type, step \\ 1, flashes \\ 0) do
+    {arr, fs} = d11_step(Arr2D.inc(arr))
+
+    cond do
+      type == :flashes && step == @max_steps -> {arr, flashes + fs}
+      type == :splashes && Arr2D.all?(arr, 0) -> {arr, step}
+      true -> d11_steps(arr, type, step + 1, flashes + fs)
+    end
+  end
+
+  defp d11_step(%Arr2D{rows: rows, cols: cols} = arr, flashes \\ 0) do
+    {arr, fs} =
+      for r <- 0..(rows - 1),
+          c <- 0..(cols - 1),
+          reduce: {arr, 0} do
+        {acc, f} ->
+          case Arr2D.get(acc, {r, c}) do
+            nil ->
+              {acc, f}
+
+            v when v <= 9 ->
+              {acc, f}
+
+            _ ->
+              acc = put_in(acc, [{r, c}], :undefined)
+
+              acc =
+                acc
+                |> Arr2D.adjacent({r, c}, true)
+                |> Enum.reduce(
+                  acc,
+                  &update_in(&2, [elem(&1, 0)], fn
+                    nil -> :undefined
+                    v -> v + 1
+                  end)
+                )
+
+              {acc, f + 1}
+          end
+      end
+
+    if fs == 0 do
+      arr =
+        for r <- 0..(arr.rows - 1),
+            c <- 0..(arr.cols - 1),
+            reduce: arr,
+            do:
+              (acc ->
+                 update_in(acc, [{r, c}], fn
+                   nil -> 0
+                   v -> v
+                 end))
+
+      {arr, flashes}
+    else
+      d11_step(arr, fs + flashes)
+    end
+  end
 end
