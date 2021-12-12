@@ -611,4 +611,98 @@ defmodule AoC_2021 do
       d11_step(arr, fs + flashes)
     end
   end
+
+  @doc """
+  Path through caves
+
+  ## Examples
+
+      iex> AoC_2021.d12_cave_path("d12_input", :simple) |> elem(0)
+      5157
+
+      iex> AoC_2021.d12_cave_path("d12_input", :double) |> elem(0)
+      144309
+
+  """
+  @spec d12_cave_path(binary(), :simple | :double) :: {non_neg_integer(), [binary()]}
+  def d12_cave_path(file, type) when type in ~w|simple double|a do
+    {starts, moves} =
+      file
+      |> File.stream!()
+      |> Stream.map(&String.trim/1)
+      |> Stream.map(&String.split(&1, <<?->>, trim: true))
+      |> Enum.to_list()
+      |> Enum.split_with(&("start" in &1))
+
+    acc =
+      case type do
+        :simple -> :exhausted
+        _ -> nil
+      end
+
+    init = starts |> Enum.map(&(&1 |> d12_step({[], acc}))) |> MapSet.new()
+
+    moves = d12_step_all(moves, init, acc)
+
+    {Enum.count(moves),
+     moves |> Enum.map(&(&1 |> Enum.reverse() |> Enum.join(","))) |> Enum.sort()}
+  end
+
+  def d12_step(step, acc \\ {[], nil})
+  def d12_step(step, acc) when is_list(acc), do: d12_step(step, {acc, nil})
+  def d12_step(["start", to], {[], type}), do: {[to, "start"], type}
+  def d12_step([to, "start"], {[], type}), do: {[to, "start"], type}
+  def d12_step([_, _], {[], type}), do: {[], type}
+
+  def d12_step(["end", from], acc), do: d12_step([from, "end"], acc)
+  def d12_step([from, "end"], {[from | _] = acc, type}), do: {["end" | acc], type}
+  def d12_step([_, "end"], {_, type}), do: {[], type}
+
+  def d12_step([from, to], {[last | _] = acc, visited}) do
+    {from, <<ct::8, _::binary>> = to} =
+      case {from, to} do
+        {^last, _} -> {from, to}
+        {_, ^last} -> {to, from}
+        _ -> {:noop, " "}
+      end
+
+    lowercased =
+      Enum.filter(acc, fn
+        <<c::8, _::binary>> when c in ?A..?Z -> false
+        _ -> true
+      end)
+
+    visited =
+      if lowercased |> MapSet.new() |> MapSet.size() == length(lowercased),
+        do: visited,
+        else: :exhausted
+
+    cond do
+      from == :noop -> {[], nil}
+      visited == to -> {[to | acc], :exhausted}
+      is_nil(visited) and ct in ?a..?z and to in acc -> {[to | acc], to}
+      ct in ?a..?z and to in acc -> {[], visited}
+      true -> {[to | acc], visited}
+    end
+  end
+
+  @spec d12_step_all(list(), MapSet.t(), atom()) :: list()
+  def d12_step_all(moves, oldies, type) do
+    oldies
+    |> Enum.to_list()
+    |> Enum.reject(&match?({[], _}, &1))
+    |> Enum.split_with(&match?({["end" | _], _}, &1))
+    |> case do
+      {done, []} ->
+        done |> Enum.map(&elem(&1, 0)) |> MapSet.new() |> Enum.to_list()
+
+      {done, left} ->
+        left =
+          left
+          |> Enum.flat_map(&Enum.map(moves, fn move -> d12_step(move, &1) end))
+          |> Enum.reject(&match?({[], _}, &1))
+
+        d12_step_all(moves, MapSet.new(done ++ left), type)
+    end
+  end
 end
