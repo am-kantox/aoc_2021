@@ -82,6 +82,20 @@ defmodule AoC_2021.Array2DInt do
              end))
   end
 
+  def count(%__MODULE__{rows: rows, cols: cols} = data, checker) when is_function(checker, 1) do
+    for r <- 0..(rows - 1), c <- 0..(cols - 1), reduce: 0 do
+      acc ->
+        if checker.(get(data, {r, c})) do
+          acc + 1
+        else
+          acc
+        end
+    end
+  end
+
+  def count(%__MODULE__{} = data, checker),
+    do: count(data, &(&1 == checker))
+
   def fill(%__MODULE__{rows: rows, cols: cols} = data, filler) do
     for r <- 0..(rows - 1),
         c <- 0..(cols - 1),
@@ -101,6 +115,84 @@ defmodule AoC_2021.Array2DInt do
       {{r, c}, get(data, {r, c})}
     end
     |> Enum.reject(&match?({_, nil}, &1))
+  end
+
+  @spec transpose(t(), :vertical | :horizontal | :diagonal) :: t()
+  def transpose(%__MODULE__{rows: rows, cols: cols} = data, :vertical) do
+    for r <- 0..(rows - 1),
+        c <- 0..(cols - 1),
+        reduce: new(rows, cols),
+        do: (acc -> set(acc, {rows - 1 - r, c}, get(data, {r, c})))
+  end
+
+  def transpose(%__MODULE__{rows: rows, cols: cols} = data, :horizontal) do
+    for r <- 0..(rows - 1),
+        c <- 0..(cols - 1),
+        reduce: new(rows, cols),
+        do: (acc -> set(acc, {r, cols - 1 - c}, get(data, {r, c})))
+  end
+
+  def transpose(%__MODULE__{rows: rows, cols: cols} = data, :diagonal) do
+    for r <- 0..(rows - 1),
+        c <- 0..(cols - 1),
+        reduce: new(cols, rows),
+        do: (acc -> set(acc, {c, r}, get(data, {r, c})))
+  end
+
+  def fragment(%__MODULE__{} = data, rows_range, cols_range) do
+    [rr_size, cr_size] = Enum.map([rows_range, cols_range], &Range.size/1)
+
+    for r <- 0..(rr_size - 1),
+        c <- 0..(cr_size - 1),
+        reduce: new(rr_size, cr_size),
+        do: (acc -> set(acc, {r, c}, get(data, {r + rows_range.first, c + cols_range.first})))
+  end
+
+  @spec fold(t(), {boolean(), non_neg_integer()}, (any(), any() -> any())) :: t()
+  def fold(%__MODULE__{rows: rows, cols: cols} = data, {false, num}, merge_fun) do
+    top_rows = num
+    bottom_rows = rows - num - 1
+    f_rows = Enum.max([top_rows, bottom_rows])
+    folded = new(f_rows, cols)
+
+    folded =
+      cond do
+        top_rows > bottom_rows ->
+          for r <- 0..(top_rows - bottom_rows),
+              c <- 0..(cols - 1),
+              reduce: folded,
+              do: (acc -> set(acc, {r, c}, get(data, {r, c})))
+
+        top_rows < bottom_rows ->
+          for r <- 0..(bottom_rows - top_rows),
+              c <- 0..(cols - 1),
+              reduce: folded,
+              do: (acc -> set(acc, {r, c}, get(data, {rows - r - 1, c})))
+
+        true ->
+          folded
+      end
+
+    for r <- abs(top_rows - bottom_rows)..(f_rows - 1),
+        c <- 0..(cols - 1),
+        reduce: folded do
+      acc ->
+        {r1, r2} =
+          if top_rows - bottom_rows > 0 do
+            {r + top_rows - bottom_rows, rows - r - 1}
+          else
+            {r, rows - top_rows + bottom_rows - r - 1}
+          end
+
+        set(acc, {r, c}, merge_fun.(get(data, {r1, c}), get(data, {r2, c})))
+    end
+  end
+
+  def fold(%__MODULE__{} = data, {true, num}, merge_fun) do
+    data
+    |> transpose(:diagonal)
+    |> fold({false, num}, merge_fun)
+    |> transpose(:diagonal)
   end
 
   def low_points(%__MODULE__{rows: rows, cols: cols} = data) do

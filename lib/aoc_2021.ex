@@ -705,4 +705,66 @@ defmodule AoC_2021 do
         d12_step_all(moves, MapSet.new(done ++ left), type)
     end
   end
+
+  @doc """
+  Path through caves
+
+  ## Examples
+
+      iex> AoC_2021.d13_fold("d13_input", 1) |> elem(0)
+      610
+  """
+  @spec d13_fold(binary(), non_neg_integer()) :: {non_neg_integer(), Arr2D.t()}
+  def d13_fold(file, count) do
+    [points, folds] =
+      file
+      |> File.read!()
+      |> String.split("\n\n", trim: true)
+
+    points =
+      points
+      |> String.split(<<?\n>>)
+      |> Enum.map(
+        &(&1
+          |> String.split(",", trim: true)
+          |> Enum.map(fn s -> String.to_integer(s) end))
+      )
+
+    {max_x, max_y} =
+      Enum.reduce(points, {0, 0}, fn
+        [x, y], {xm, ym} when x > xm and y > ym -> {x, y}
+        [x, _], {xm, ym} when x > xm -> {x, ym}
+        [_, y], {xm, ym} when y > ym -> {xm, y}
+        _, {xm, ym} -> {xm, ym}
+      end)
+
+    [_fold | _] =
+      folds =
+      folds
+      |> String.split(<<?\n>>)
+      |> Enum.map(fn
+        <<"fold along x=", idx::binary>> -> {true, String.to_integer(idx)}
+        <<"fold along y=", idx::binary>> -> {false, String.to_integer(idx)}
+      end)
+
+    arr = Arr2D.new(max_y + 1, max_x + 1) |> Arr2D.fill(false)
+    arr = Enum.reduce(points, arr, fn [x, y], acc -> Arr2D.set(acc, {y, x}, true) end)
+
+    %{rows: rows, cols: cols} =
+      result =
+      folds
+      |> Enum.with_index()
+      |> Enum.reduce_while(arr, fn
+        {_fold, idx}, acc when idx >= count -> {:halt, acc}
+        {fold, _idx}, acc -> {:cont, Arr2D.fold(acc, fold, &Kernel.||/2)}
+      end)
+
+    count =
+      for r <- 0..(rows - 1),
+          c <- 0..(cols - 1),
+          reduce: 0,
+          do: (acc -> acc + if(Arr2D.get(result, {r, c}), do: 1, else: 0))
+
+    {count, result}
+  end
 end
