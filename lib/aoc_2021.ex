@@ -767,4 +767,50 @@ defmodule AoC_2021 do
 
     {count, result}
   end
+
+  @doc """
+  Polymers
+
+  ## Examples
+
+      iex> AoC_2021.d14_polymers("d14_input")
+      2408
+  """
+  @spec d14_polymers(binary(), non_neg_integer()) :: non_neg_integer()
+  def d14_polymers(file, steps \\ 10) do
+    [input, pairs] =
+      file
+      |> File.read!()
+      |> String.split("\n\n", trim: true)
+
+    pairs =
+      for <<p1::8, p2::8, " -> ", to_insert::8>> <- String.split(pairs, "\n"),
+          into: %{},
+          do: {[p1, p2], to_insert}
+
+
+    {min, max} =
+      input
+      |> to_charlist()
+      |> Enum.chunk_every(2, 1)
+      |> Enum.frequencies()
+      |> Stream.iterate(&d14_step(&1, pairs))
+      |> Enum.at(steps)
+      |> Enum.reduce(%{}, fn {[char|_], count}, counts -> Map.update(counts, char, count, &(&1 + count)) end)
+      |> Enum.map(&elem(&1, 1))
+      |> Enum.min_max()
+
+    max - min
+  end
+
+  defp d14_step(freqs, pairs) do
+    freqs
+    |> Enum.flat_map(fn
+      {[c1, c2] = pair, count} -> [{[c1, pairs[pair]], count}, {[pairs[pair], c2], count}]
+      single -> List.wrap(single)
+    end)
+    |> Enum.reduce(%{}, fn {c, count}, counts ->
+      Map.update(counts, c, count, &(&1 + count)) end
+    )
+  end
 end
